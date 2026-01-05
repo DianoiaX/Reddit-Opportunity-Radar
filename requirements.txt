@@ -1,0 +1,8 @@
+# Reddit API Wrapper
+praw>=7.7.1
+
+# Environment variables management
+python-dotenv>=1.0.0
+
+# Google Gemini API (LLM Analysis)
+google-generativeai>=0.3.0
