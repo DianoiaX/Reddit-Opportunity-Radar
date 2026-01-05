@@ -30,9 +30,9 @@ client = genai.Client()
 # Model Seçimi: 'gemini-1.5-flash' (Hızlı/Ucuz) veya 'gemini-1.5-pro' (Akıllı)
 MODEL_NAME = "gemini-2.5-flash"
 
-# Daha genel kelimeler ekledik ki AI tetiklensin
+# Daha spesifik kelimeler kullan (API kullanımını azaltmak için)
 TARGET_SUBREDDITS = ["SaaS", "Entrepreneur", "smallbusiness", "startups", "sideproject", "microsaas"]
-KEYWORDS = ["help", "need", "idea", "app", "best", "tool", "software", "question", "looking for", "how"]
+KEYWORDS = ["how do i", "alternative to", "looking for", "wish there was", "need a tool", "pain in the"]
 
 HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36'
@@ -112,7 +112,8 @@ def scan_reddit_json():
         try:
             print(f"🔄 [{time.strftime('%H:%M:%S')}] Reddit taranıyor...", end='', flush=True)
             
-            url = f"https://www.reddit.com/r/{'+'.join(TARGET_SUBREDDITS)}/new.json?limit=25"
+            # Rate limit: sadece 10 post al (API kullanımını azaltmak için)
+            url = f"https://www.reddit.com/r/{'+'.join(TARGET_SUBREDDITS)}/new.json?limit=10"
             response = requests.get(url, headers=HEADERS, timeout=10)
             
             if response.status_code != 200:
@@ -141,6 +142,9 @@ def scan_reddit_json():
                     print(f"\n🔎 İnceleniyor: {title[:40]}...", flush=True)
                     
                     analysis = analyze_with_gemini(title + "\n" + selftext)
+                    
+                    # Rate limit: API çağrıları arasında 5 saniye bekle
+                    time.sleep(5)
                     
                     if analysis:  # Analysis null değilse
                         score = analysis.get("score", 0)
