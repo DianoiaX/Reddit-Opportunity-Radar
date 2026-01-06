@@ -9,7 +9,6 @@ from dotenv import load_dotenv
 from google import genai
 
 # --- AYARLAR ---
-# 1. Output Buffering'i devre dışı bırak
 sys.stdout.reconfigure(line_buffering=True, encoding='utf-8')
 warnings.filterwarnings("ignore")
 
@@ -19,68 +18,74 @@ load_dotenv()
 # Gemini API Key'i .env dosyasından al
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
 
-# Modeli Yapılandır
 if not GEMINI_API_KEY:
     print("❌ GEMINI_API_KEY bulunamadı! .env dosyasını kontrol et.")
     sys.exit(1)
 
-# Yeni google-genai client oluştur (GEMINI_API_KEY env var'dan otomatik alır)
-client = genai.Client()
+# Yeni google-genai client oluştur
+client = genai.Client(api_key=GEMINI_API_KEY)
 
-# Model Seçimi: 'gemini-1.5-flash' (Hızlı/Ucuz) veya 'gemini-1.5-pro' (Akıllı)
-MODEL_NAME = "gemini-2.5-flash"
+# Model Seçimi
+# 'gemini-1.5-flash', 'gemini-2.0-flash-exp', 'gemini-1.5-pro' deneyebiliriz
+MODEL_NAME = "gemini-2.0-flash-exp" 
 
-# Daha spesifik kelimeler kullan (API kullanımını azaltmak için)
+# Hedef subredditler ve anahtar kelimeler
 TARGET_SUBREDDITS = ["SaaS", "Entrepreneur", "smallbusiness", "startups", "sideproject", "microsaas"]
 KEYWORDS = ["how do i", "alternative to", "looking for", "wish there was", "need a tool", "pain in the"]
 
 HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36'
+    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
 }
 
-seen_posts = set() 
+seen_posts = set()
 
 def analyze_with_gemini(text):
-    """Metni Gemini'ye gönderip iş fikri potansiyelini ölçer"""
+    """Metni Gemini'ye gönderir. 429 Hatası alırsa bekleyip tekrar dener."""
     
+    max_retries = 5 
+    base_wait_time = 20 # Free tier bazen uzun süre kilitliyor, 20sn ile başlayalım
+
     prompt = f"""
     Sen deneyimli bir yazılım girişimcisisin. Aşağıdaki Reddit gönderisini analiz et.
-    
     Gönderi: "{text}"
-    
-    Eğer bu metinde NET bir SaaS, Mikro-SaaS veya yazılım iş fikri fırsatı (bir acı noktası, manuel yapılan bir iş, eksik bir araç) varsa JSON formatında yanıt ver.
-    
+    Eğer bu metinde NET bir SaaS, Mikro-SaaS veya yazılım iş fikri fırsatı varsa JSON formatında yanıt ver.
     İstenen JSON Formatı:
     {{
         "is_opportunity": true,
         "pain_point": "Kısaca problemin ne olduğu",
         "target_audience": "Kimler bu sorunu yaşıyor",
         "suggested_solution": "Nasıl bir app/tool yapılabilir",
-        "score": 8 (1-10 arası, sadece 7 ve üzeri ise true yap)
+        "score": 8
     }}
-    
-    Eğer sadece boş bir şikayet, alakasız bir soru veya yazılımla çözülemeyecek bir durumsa:
-    {{ "is_opportunity": false }}
-    
-    Sadece JSON döndür, başka bir şey yazma.
+    Eğer fırsat yoksa: {{ "is_opportunity": false }}
     """
 
-    try:
-        # Yeni google-genai API kullanımı
-        response = client.models.generate_content(
-            model=MODEL_NAME,
-            contents=prompt,
-            config={
-                "response_mime_type": "application/json"
-            }
-        )
-        
-        # Gelen yanıtı JSON'a çevir
-        return json.loads(response.text)
-        
-    except Exception as e:
-        print(f"⚠️ Gemini Hatası: {e}", flush=True)
-        return None
+    for attempt in range(max_retries):
+        try:
+            response = client.models.generate_content(
+                model=MODEL_NAME,
+                contents=prompt,
+                config={"response_mime_type": "application/json"}
+            )
+            
+            # Başarılı istekten sonra kotayı korumak için zorunlu bekleme
+            time.sleep(5) 
+            
+            return json.loads(response.text)
+            
+        except Exception as e:
+            error_msg = str(e)
+            # Eğer hata 429 (Resource Exhausted) ise
+            if "429" in error_msg or "Resource has been exhausted" in error_msg or "Quota exceeded" in error_msg:
+                wait_time = base_wait_time * (attempt + 1)
+                print(f"\n⚠️ Kota aşıldı (429). {wait_time} saniye soğutuluyor... (Deneme {attempt+1}/{max_retries})", flush=True)
+                time.sleep(wait_time)
+            else:
+                print(f"⚠️ Kritik Gemini Hatası: {e}", flush=True)
+                return None
+    
+    print("\n❌ Maksimum deneme sayısına ulaşıldı. Bu post atlanıyor.", flush=True)
+    return None
 
 # --- CSV KAYIT FONKSİYONU ---
 def save_to_csv(data):
@@ -89,7 +94,6 @@ def save_to_csv(data):
     with open('firsatlar.csv', 'a', newline='', encoding='utf-8') as f:
         writer = csv.DictWriter(f, fieldnames=["Tarih", "Puan", "Problem", "Fikir", "Hedef Kitle", "Link"])
         
-        # Dosya yoksa önce başlıkları yaz
         if not file_exists:
             writer.writeheader()
             
@@ -112,7 +116,6 @@ def scan_reddit_json():
         try:
             print(f"🔄 [{time.strftime('%H:%M:%S')}] Reddit taranıyor...", end='', flush=True)
             
-            # Rate limit: sadece 10 post al (API kullanımını azaltmak için)
             url = f"https://www.reddit.com/r/{'+'.join(TARGET_SUBREDDITS)}/new.json?limit=10"
             response = requests.get(url, headers=HEADERS, timeout=10)
             
@@ -143,10 +146,7 @@ def scan_reddit_json():
                     
                     analysis = analyze_with_gemini(title + "\n" + selftext)
                     
-                    # Rate limit: API çağrıları arasında 5 saniye bekle
-                    time.sleep(5)
-                    
-                    if analysis:  # Analysis null değilse
+                    if analysis:
                         score = analysis.get("score", 0)
                         
                         if analysis.get("is_opportunity") and score >= 7:
@@ -163,11 +163,10 @@ def scan_reddit_json():
                             csv_data['permalink'] = post_data['permalink']
                             save_to_csv(csv_data)
                         else:
-                            # TEST İÇİN: Düşük puanlıları da yazdıralım
-                            print(f"   ❌ Pas Geçildi (Puan: {score}) - Sebep: {analysis.get('pain_point', 'Fırsat görülmedi')}", flush=True)
+                            print(f"   ❌ Pas Geçildi (Puan: {score})", flush=True)
             
             print(f" Bitti. ({new_count} yeni)", flush=True)
-            time.sleep(60) # 1 Dakika bekle
+            time.sleep(60)
             
         except KeyboardInterrupt:
             print("\n👋 Tarama durduruldu.", flush=True)

@@ -1,8 +1,15 @@
-# Reddit API Wrapper
-praw>=7.7.1
+# Reddit Market Radar v2.0 - Bağımlılıklar
 
-# Environment variables management
+# Temel
+requests>=2.28.0
 python-dotenv>=1.0.0
 
-# Google Gemini API (LLM Analysis)
+# AI Sağlayıcılar (birini veya ikisini de kullanabilirsiniz)
+openai>=1.0.0
 google-generativeai>=0.3.0
+
+# PRAW - Reddit API (isteğe bağlı, şu an HTTP ile çalışıyor)
+praw>=7.7.0
+
+# Yardımcı
+typing_extensions>=4.0.0
