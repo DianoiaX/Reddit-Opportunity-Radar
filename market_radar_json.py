@@ -25,9 +25,7 @@ if not GEMINI_API_KEY:
 # Yeni google-genai client oluştur
 client = genai.Client(api_key=GEMINI_API_KEY)
 
-# Model Seçimi
-# 'gemini-1.5-flash', 'gemini-2.0-flash-exp', 'gemini-1.5-pro' deneyebiliriz
-MODEL_NAME = "gemini-2.0-flash-exp" 
+MODEL_NAME = "gemini-2.5-flash-lite" 
 
 # Hedef subredditler ve anahtar kelimeler
 TARGET_SUBREDDITS = ["SaaS", "Entrepreneur", "smallbusiness", "startups", "sideproject", "microsaas"]

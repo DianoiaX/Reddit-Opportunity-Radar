@@ -12,11 +12,6 @@ sys.stdout.reconfigure(encoding='utf-8')
 # Çevresel değişkenleri yükle
 load_dotenv()
 
-# --- AYARLAR ---
-REDDIT_CLIENT_ID = os.getenv('REDDIT_CLIENT_ID')
-REDDIT_CLIENT_SECRET = os.getenv('REDDIT_CLIENT_SECRET')
-REDDIT_USER_AGENT = os.getenv('REDDIT_USER_AGENT', 'MarketRadar v0.2')
-
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
 
 # Hedefler

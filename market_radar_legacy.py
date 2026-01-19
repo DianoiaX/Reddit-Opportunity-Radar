@@ -1,14 +1,4 @@
-"""
-📡 Reddit Opportunity Radar - Market Radar v0.1
-===============================================
-Bu script belirlenen subreddit'lerdeki postları tarar ve
-potansiyel iş fırsatlarını tespit eder.
 
-Kullanım:
-    1. .env.example dosyasını .env olarak kopyala
-    2. Reddit API bilgilerini .env dosyasına gir
-    3. python market_radar.py komutunu çalıştır
-"""
 
 import praw
 import os
@@ -18,10 +8,6 @@ from datetime import datetime
 # .env dosyasından çevresel değişkenleri yükle
 load_dotenv()
 
-# --- AYARLAR ---
-REDDIT_CLIENT_ID = os.getenv('REDDIT_CLIENT_ID')
-REDDIT_CLIENT_SECRET = os.getenv('REDDIT_CLIENT_SECRET')
-REDDIT_USER_AGENT = os.getenv('REDDIT_USER_AGENT', 'MarketRadar v0.1 (learning purpose)')
 
 # Hedeflediğimiz Subredditler
 TARGET_SUBREDDITS = [
